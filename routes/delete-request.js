@@ -20,10 +20,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
-      res.status(status);
-      res.send(data);
+      console.log("deletereq:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       var sql = `DELETE FROM requests WHERE requestid = ${requestid} AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
       con.query(sql, function (err, result) {

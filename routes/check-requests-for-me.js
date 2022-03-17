@@ -21,8 +21,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("checkreqforme:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       courses.map((course) => {
         var sql = `SELECT * from requests WHERE course_id = '${course}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;

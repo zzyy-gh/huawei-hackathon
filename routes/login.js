@@ -20,8 +20,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("login:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       var sql = `select users.uuid, username, firstname, lastname, users.school_id, school AS school_name, users.course from users left join schools on users.school_id = schools.school_id WHERE username = '${username}' AND password='${password}';`;
       con.query(sql, function (err, result) {

@@ -18,8 +18,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("schoolall:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       var sql = `SELECT * from schools`;
       con.query(sql, function (err, result) {

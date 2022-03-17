@@ -26,8 +26,10 @@ router.post("/", async (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("register:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       let myPromise = new Promise((resolve, reject) => {
         const sql0 = `SELECT * FROM users WHERE username = '${username}';`;

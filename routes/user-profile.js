@@ -10,8 +10,8 @@ router.post("/", (req, res) => {
   var uuid = body.uuid;
   var username = body.username;
   // --------------------------------------------------
-
-  var con = mysql.createConnection({
+  var con;
+  con = mysql.createConnection({
     host: "116.205.180.143",
     user: "root",
     password: "hackkk1!",
@@ -20,8 +20,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("userprofile:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       var sql = `SELECT * from users WHERE username = '${username}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
       con.query(sql, function (err, result) {

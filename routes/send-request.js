@@ -26,8 +26,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("sendrequest:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       let schoolPromise = new Promise((resolve, reject) => {
         var sql = `SELECT school FROM schools WHERE school_id = '${school_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;

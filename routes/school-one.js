@@ -20,8 +20,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("schoolone:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       var sql = `SELECT * from schools WHERE school_id = '${school_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
       con.query(sql, function (err, result) {

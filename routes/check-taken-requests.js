@@ -20,8 +20,10 @@ router.post("/", (req, res) => {
 
   con.connect(function (err) {
     if (err) {
-      status = 500;
-      data = err;
+      console.log("checktakenrequest:");
+      console.log(err);
+      res.send(500).send(err);
+      return;
     } else {
       let userPromise = new Promise((resolve, reject) => {
         var sql = `SELECT username FROM users WHERE uuid = ${uuid} AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
