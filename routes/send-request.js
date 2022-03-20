@@ -3,9 +3,9 @@ const mysql = require("mysql");
 
 const router = express.Router();
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   var data = {};
-  var status = 400;
+  var status = 200;
   const body = req.body;
   var uuid = body.uuid;
   var school_id = body.school_id;
@@ -13,8 +13,11 @@ router.post("/", (req, res) => {
   var school;
   var username;
   var course_list = [];
-  promises1 = [];
-  promises2 = [];
+  coursePromises = [];
+  reqPromises = [];
+
+  console.log("sr: ", body);
+
   // --------------------------------------------------
 
   var con = mysql.createConnection({
@@ -24,33 +27,78 @@ router.post("/", (req, res) => {
     database: "hackathon",
   });
 
-  con.connect(function (err) {
-    if (err) {
-      console.log("sendrequest:");
-      console.log(err);
-      res.send(500).send(err);
-      return;
-    } else {
-      let schoolPromise = new Promise((resolve, reject) => {
-        var sql = `SELECT school FROM schools WHERE school_id = '${school_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
-        con.query(sql, function (err, result) {
-          if (err) {
-            reject(err);
-          }
+  // connect
+  const conPromise = new Promise((resolve, reject) => {
+    con.connect(async function (err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+
+  await conPromise.catch((err) => {
+    data = err;
+    status = 500;
+  });
+
+  if (status === 200) {
+    const schoolPromise = new Promise((resolve, reject) => {
+      var sql = `SELECT school FROM schools WHERE school_id = '${school_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
+      con.query(sql, function (err, result) {
+        if (err) {
+          reject(err);
+        } else {
           resolve(result);
-        });
+        }
       });
-      schoolPromise
-        .then((result) => {
+    });
+
+    await schoolPromise
+      .then((result) => {
+        if (result && result.length != 0) {
           school = result[0]["school"];
-        })
-        .catch((err) => {
-          res.status(500).send(err);
-          return;
-        });
+        } else {
+          status = 404;
+        }
+      })
+      .catch((err) => {
+        data = err;
+        status = 500;
+      });
+  }
 
-      let userPromise = new Promise((resolve, reject) => {
-        var sql = `SELECT username FROM users WHERE uuid = ${uuid} AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
+  if (status === 200) {
+    const userPromise = new Promise((resolve, reject) => {
+      var sql = `SELECT username FROM users WHERE uuid = ${uuid} AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
+      con.query(sql, function (err, result) {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+    });
+
+    await userPromise
+      .then((result) => {
+        if (result && result.length != 0) {
+          username = result[0]["username"];
+        } else {
+          status = 404;
+        }
+      })
+      .catch((err) => {
+        data = err;
+        status = 500;
+      });
+  }
+
+  if (status === 200) {
+    courses.map((course_id) => {
+      let coursePromise = new Promise((resolve, reject) => {
+        var sql = `SELECT * FROM courses WHERE course = '${course_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
         con.query(sql, function (err, result) {
           if (err) {
             reject(err);
@@ -58,71 +106,56 @@ router.post("/", (req, res) => {
           resolve(result);
         });
       });
-      userPromise
-        .then((result) => {
-          username = result[0]["username"];
-        })
-        .catch((err) => {
-          res.status(500).send(err);
-          return;
-        });
+      coursePromises.push(coursePromise);
+    });
 
-      courses.map((course_id) => {
-        let coursePromise = new Promise((resolve, reject) => {
-          var sql = `SELECT * FROM courses WHERE course = '${course_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
-          con.query(sql, function (err, result) {
-            if (err) {
-              reject(err);
-            }
-            resolve(result);
-          });
-        });
-        promises1.push(coursePromise);
-      });
-
-      Promise.all(promises1)
-        .then((r) => {
+    await Promise.all(coursePromises)
+      .then((result) => {
+        if (result && result.length != 0) {
           // console.log(r);
-          r.map((item) => {
+          result.map((item) => {
             const obj = {
               course: item[0]["course"],
               coursename: item[0]["coursename"],
             };
             course_list.push(obj);
           });
-          // console.log(course_list);
-          course_list.map((item, i) => {
-            // console.log(item);
-            let requestPromise = new Promise((resolve, reject) => {
-              const requestid = Date.now() + i;
-              var sql = `INSERT INTO requests (uuid, requestid, school_id, school, course_id, course, tutor, tutee, tutor_in_line) VALUES (${requestid}, ${requestid}, '${school_id}', '${school}', '${item["course"]}', '${item["coursename"]}', NULL, '${username}', NULL);`;
-              con.query(sql, function (err, result) {
-                if (err) {
-                  reject(err);
-                }
-                resolve(result);
-              });
-            });
-            promises2.push(requestPromise);
-          });
+        } else {
+          status = 404;
+        }
+      })
+      .catch((err) => {
+        data = err;
+        status = 500;
+      });
+  }
 
-          Promise.all(promises2)
-            .then(() => {
-              // console.log("All items are added.");
-              res.status(200);
-              res.send(data);
-            })
-            .catch((err) => {
-              res.status(500).send(err);
-              return;
-            });
-        })
-        .catch((err) => {
-          res.status(500).send(err);
-          return;
+  if (status === 200) {
+    course_list.map((item, i) => {
+      // console.log(item);
+      let requestPromise = new Promise((resolve, reject) => {
+        const requestid = Date.now() + i;
+        var sql = `INSERT INTO requests (uuid, requestid, school_id, school, course_id, course, tutor, tutee, tutor_in_line) VALUES (${requestid}, ${requestid}, '${school_id}', '${school}', '${item["course"]}', '${item["coursename"]}', NULL, '${username}', NULL);`;
+        con.query(sql, function (err, result) {
+          if (err) {
+            reject(err);
+          }
+          resolve(result);
         });
-    }
-  });
+      });
+      reqPromises.push(requestPromise);
+    });
+
+    await Promise.all(reqPromises).catch((err) => {
+      data = err;
+      status = 500;
+    });
+  }
+
+  console.log(data);
+  con.destroy();
+  res.status(status).send(data);
+  return;
 });
 
 module.exports = router;

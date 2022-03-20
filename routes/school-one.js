@@ -3,12 +3,15 @@ const mysql = require("mysql");
 
 const router = express.Router();
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   var data = {};
-  var status = 400;
+  var status = 200;
   const body = req.body;
   var uuid = body.uuid;
   var school_id = body.school_id;
+
+  console.log("so: ", body);
+
   // --------------------------------------------------
 
   var con = mysql.createConnection({
@@ -18,22 +21,37 @@ router.post("/", (req, res) => {
     database: "hackathon",
   });
 
-  con.connect(function (err) {
-    if (err) {
-      console.log("schoolone:");
-      console.log(err);
-      res.send(500).send(err);
-      return;
-    } else {
+  // connect
+  const conPromise = new Promise((resolve, reject) => {
+    con.connect(async function (err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+
+  await conPromise.catch((err) => {
+    data = err;
+    status = 500;
+  });
+
+  if (status === 200) {
+    const schoolPromise = new Promise((resolve, reject) => {
       var sql = `SELECT * from schools WHERE school_id = '${school_id}' AND EXISTS (SELECT uuid FROM users WHERE uuid = ${uuid});`;
       con.query(sql, function (err, result) {
         if (err) {
-          status = 500;
-          data = err;
-        } else if (result && result.length != 0) {
-          // console.log(1);
-          // console.log(result);
-          status = 200;
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      });
+    });
+
+    await schoolPromise
+      .then((result) => {
+        if (result && result.length != 0) {
           data = result[0];
           data["courses"] = [];
           result.map((user) => {
@@ -47,14 +65,19 @@ router.post("/", (req, res) => {
           });
           delete data["course"];
         } else {
-          // console.log(2);
-          status = 200;
+          status = 404;
         }
-        res.status(status);
-        res.send(data);
+      })
+      .catch((err) => {
+        data = err;
+        status = 500;
       });
-    }
-  });
+  }
+
+  console.log(data);
+  con.destroy();
+  res.status(status).send(data);
+  return;
 });
 
 module.exports = router;
